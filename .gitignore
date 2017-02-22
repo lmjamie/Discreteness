@@ -3,3 +3,15 @@
 
 # Packaging
 .cask
+
+# Backups and Autosaves
+*~
+*.#*
+*#*#
+
+# Exporting
+*.txt
+*.html
+*.pdf
+*.tex
+ltxpng
