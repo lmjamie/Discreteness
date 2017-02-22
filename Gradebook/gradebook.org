@@ -1,0 +1,177 @@
+#+tblname: myTable
+| Student | 00 | 01 | 02 | 03 | 04 | 05 | 06 | 07 | 08 | 09 | 10 | 11 | 12 | Score | letter |
+|---------+----+----+----+----+----+----+----+----+----+----+----+----+----+-------+--------|
+|         |    |    |    |    |    |    |    |    |    |    |    |    |    |       |        |
+#+tblfm: $2='(get-assign $1 @1$2)::$3='(get-assign $1 @1$3)::$4='(get-assign $1 @1$4)::$5='(get-assign $1 @1$5)::$6='(get-assign $1 @1$6)::$7='(get-assign $1 @1$7)::$8='(get-assign $1 @1$8)::$9='(get-assign $1 @1$9)::$10='(get-assign $1 @1$10)::$11='(get-assign $1 @1$11)::$12='(get-assign $1 @1$12)::$13='(get-assign $1 @1$13)::$14='(get-assign $1 @1$14)::$15='(get-final-score)::$16='(get-final-letter)
+#+tblfm: $1='(populate-students @#)
+
+#+begin_src emacs-lisp
+  (defvar file-student "STARTUP")
+  (defconst semester "972528")
+  (defconst class "1")
+  (defconst assess-file "pa")
+  (defconst assign-file "wa")
+  (defconst assign-name "Assign")
+  (defconst assess-name "Assess")
+
+  (defun get-assign (student-link assign)
+    "This will get the scores of the assignments for the week and
+  then return all the scores after bening formated properly. If
+  needed the file will be updated to match the current student."
+    (let ((student (extract-name student-link)))
+      (when (not (string= student file-student))
+        (get-student-file student))
+      (let ((assign-scores (find-assign-score assign))
+            (assign-file-string (assign-file-link student assign assign-file))
+            (assess-file-string (assign-file-link student assign assess-file)))
+        (if (= (length assign-scores) 2)
+            (format (concat assess-file-string " " assign-file-string)
+                    (car assign-scores) (cadr assign-scores))
+          (format assign-file-string (car assign-scores))))))
+
+  (defun find-assign-score (assign)
+    "This will gather together the assignment scores for the week."
+    (let ((assign-list
+           (remove-if nil
+                      (mapcar (lambda (line)
+                                (when (is-assign-line assign line) line))
+                              current-file))))
+      (mapcar 'extract-score assign-list)))
+
+  (defun assign-file-link (student num link-name)
+    "Creates a file link in org as a string to the specific
+  assignment or assessment for the student. The score will be the
+  name of the link."
+    (concat "[[file:" (week-folder-string student num)
+            "/" link-name num ".org][%3s]]"))
+
+  (defun is-assign-line (assign line)
+    "Determines if the line contains both the assignment week and
+  the word 'Assign' or 'Assess'."
+    (or (string-match (concat assign " " assign-name) line)
+        (string-match (concat assign " " assess-name) line)))
+
+  (defun get-student-file (student)
+    "Grabs the student's see-grades.org file as a list of lines.
+  This will also set variables the final grade and letter and the
+  current student name for updating purposes."
+    (setq current-file
+          (with-temp-buffer
+            (insert-file-contents (grade-file-string student))
+            (split-string (buffer-string) "\n" t))
+          final-info (split-up-score (car (last current-file)))
+          file-student student))
+
+  (defun extract-score (assign-line)
+    "This will grab the grade from the correct position in the
+  assignment line."
+    (nth 1 (split-up-score assign-line)))
+
+  (defun extract-name (student-link)
+    "This will grab the student's name from the correct position in
+  the link."
+    (nth 1 (split-up-link student-link)))
+
+  (defun get-final-score ()
+    "This will grab the numeric final score which is from the
+  current file."
+    (car final-info))
+
+  (defun get-final-letter ()
+    "This will grab the letter final score which is from the
+  current file."
+    (cadr final-info))
+
+  (defun split-up-score (score-line)
+   "This will split the line into a list of the contents, trimming
+  off one or more spaces on either end if needed."
+    (split-string score-line "|" t "\\s-+"))
+
+  (defun week-folder-string (student week)
+    "Put together the string for a students selected week folder"
+    (concat (class-folder-string) "/" student "/week" week))
+
+  (defun class-folder-string ()
+    "Put together the string for the class."
+    (concat "~/" semester "/" class))
+
+  (defun grade-file-string (student)
+    "Finishes up the folder string for the grade file."
+    (concat (week-folder-string student "00") "/see-grades.org"))
+
+  (defun get-latest-grades (student)
+    "Uses git to update the week folder to get the latest grades.
+  Unfinished."
+    (let ((default-directory (expand-file-name (week-folder-string student "00"))))
+      (magit-pull-from-pushremote "")))
+
+  (defun get-groups-file ()
+    "Grabs the info file to be able to access the groups list for
+  the class. This is returned as a list of lines without empty
+  spaces."
+    (with-temp-buffer
+      (insert-file-contents (concat "~/mebewiyo/W17/" class "dm/info.org"))
+      (split-string (buffer-string) "\n" t)))
+
+  (defun split-up-groups (groups-line)
+    "This splits up the groups line into a list, which contains the
+  group names. Will removing the parentheses as needed."
+    (split-string groups-line " " t "[\\(|\\)]"))
+
+  (defun split-up-link (student-link)
+    "This splits up the student's link into parts which will have
+  the student's name. This will remove brackets as needed."
+    (split-string student-link "\\[" t "\\]*"))
+
+  (defun get-group-list ()
+    "This will look through each line of the group file until the
+  line that get the group names together is found. It will look 3
+  lines ahead for the actual groups list. Those groups will be
+  split up and returned."
+    (let ((line-num 0)
+          (groups-file (get-groups-file)))
+      (catch 'found-groups
+        (mapcar (lambda (line)
+                  (if (not (string-match "(mapcar 'third groups)" line))
+                      (incf line-num)
+                    (incf line-num 3)
+                    (throw 'found-groups t)))
+                groups-file))
+      (split-up-groups (nth line-num groups-file))))
+
+  (defun get-students-list ()
+    "This will return a list of students from the class folder.
+  Those names will be filtered for any that are group names or
+  directory defaults."
+    (let* ((group-list (append '("." "..") (get-group-list)))
+           (student-names
+            (remove-if (lambda (folder) (member folder group-list))
+                       (directory-files (class-folder-string)))))
+      student-names))
+
+  (defun populate-students (which-row)
+    "This accepts a row number, then turns it into the student
+  number. It will grab the list of students if it is not already
+  grabbed. The student name will be returned as a link to that
+  student's see-grades file."
+    (let ((which-student (- which-row 2)))
+      (unless (boundp 'student-names)
+        (setq student-names (get-students-list)))
+      (see-grades-link-format (nth which-student student-names))))
+
+  (defun see-grades-link-format (student)
+    "A wrapper to insert the student's name into the link in the
+  proper places."
+    (format (see-grades-link) student student))
+
+  (defun see-grades-link ()
+    "Put the link string together for the see-grades file of any
+  student."
+    (concat "[[file:" (grade-file-string "%s")"][%s]]"))
+#+end_src
+
+#+RESULTS:
+: see-grades-link
+
+
+
