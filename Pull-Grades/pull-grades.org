@@ -1,5 +1,47 @@
 
 #+begin_src emacs-lisp
-  (defun start ()
-    t)
+  (defconst semester "972528")
+  (defconst class "1")
+  (defconst assess-file "pa")
+  (defconst assign-file "wa")
+  (defconst assign-name "Assign")
+  (defconst assess-name "Assess")
+
+  (defun week-folder-string (name week)
+    "Put together the string for a student or group's selected week folder"
+    (concat (class-folder-string) "/" name "/week" week))
+
+  (defun class-folder-string ()
+    "Put together the string for the class."
+    (concat "~/" semester "/" class))
+
+  (defun score-file-string (file-type group week)
+    (concat (week-folder-string group week) "/" file-type week ".org"))
+
+  (defun get-group-grades (group week)
+    (list (get-score assess-file group week)
+          (get-score assign-file group week)))
+
+  (defun get-score (type group week)
+    (extract-score-from-tag
+     (get-score-line 
+      (with-temp-buffer 
+        (insert-file-contents (score-file-string type group week))
+        (split-string (buffer-string) "\n" t)))))
+
+  (defun get-score-line (group-file-lines)
+    (catch 'found-line
+      (mapc (lambda (line)
+              (when (string-match "#\\+SCORE:" line)
+                (throw 'found-line line))) group-file-lines)))
+
+  (defun split-up-score-tag (score-tag)
+    (split-string score-tag ":" t "\\s-+"))
+
+  (defun extract-score-from-tag (score-tag)
+    (nth 1 (split-up-score-tag score-tag)))
+  (format ">%s<" (get-group-grade "a" "06"))
 #+end_src
+
+#+RESULTS:
+: >(100 95)<
