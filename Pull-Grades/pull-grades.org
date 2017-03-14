@@ -1,116 +1,121 @@
 #+begin_src emacs-lisp
-  (defconst semester "972528")
-  (defconst class "1")
-  (defconst assess-file "pa")
-  (defconst assign-file "wa")
-  (defconst assign-name "Assign")
-  (defconst assess-name "Assess")
+    (defconst semester "972528")
+    (defconst class "1")
+    (defconst assess-file "pa")
+    (defconst assign-file "wa")
+    (defconst assign-name "Assign")
+    (defconst assess-name "Assess")
 
-  (defun week-folder-string (name week)
-    "Put together the string for a student or group's selected week folder"
-    (concat (class-folder-string) "/" name "/week" week))
+    (defun week-folder-string (name week)
+      "Put together the string for a student or group's selected week folder"
+      (concat (class-folder-string) "/" name "/week" week))
 
-  (defun class-folder-string ()
-    "Put together the string for the class."
-    (concat "~/" semester "/" class))
+    (defun class-folder-string ()
+      "Put together the string for the class."
+      (concat "~/" semester "/" class))
 
-  (defun score-file-string (file-type group week)
-    (concat (week-folder-string group week) "/" file-type week ".org"))
+    (defun score-file-string (file-type group week)
+      (concat (week-folder-string group week) "/" file-type week ".org"))
 
-  (defun see-grades-file-string (student)
-    (concat (week-folder-string student "00") "/see-grades.org"))
+    (defun see-grades-file-string (student)
+      (concat (week-folder-string student "00") "/see-grades.org"))
 
-  (defun get-group-grades (group week)
-    (list (get-score assess-file group week)
-          (get-score assign-file group week)))
+    (defun get-group-grades (group week)
+      (list (get-score assess-file group week)
+            (get-score assign-file group week)))
 
-  (defun lines-from-file (file &optional keep-empty) 
-    (with-temp-buffer
-      (insert-file-contents file)
-      (split-string (buffer-string) "\n" (not keep-empty))))
+    (defun lines-from-file (file &optional keep-empty) 
+      (with-temp-buffer
+        (insert-file-contents file)
+        (split-string (buffer-string) "\n" (not keep-empty))))
 
-  (defun get-score (type group week)
-    (let ((score-file (score-file-string type group week)))
-      (if (file-exists-p score-file)
-          (extract-score-from-tag
-           (get-score-line 
-            (lines-from-file score-file)))
-        "0")))
+    (defun get-score (type group week)
+      (let ((score-file (score-file-string type group week)))
+        (if (file-exists-p score-file)
+            (extract-score-from-tag
+             (get-score-line 
+              (lines-from-file score-file)))
+          "0")))
 
-  (defun get-score-line (group-file-lines)
-    (catch 'found-line
-      (mapc (lambda (line)
-              (when (string-match "#\\+SCORE:" line)
-                (throw 'found-line line))) group-file-lines)))
-
-  (defun split-up-score-tag (score-tag)
-    (split-string score-tag ":" t "\\s-+"))
-
-  (defun extract-score-from-tag (score-tag)
-    (nth 1 (split-up-score-tag score-tag)))
-
-  (defun get-assign-score (scores)
-    (cadr scores))
-
-  (defun get-assess-score (scores)
-    (car scores))
-
-  (defun get-groups-file ()
-    "Grabs the info file to be able to access the groups list for
-             the class. This is returned as a list of lines without empty
-             spaces."
-    (lines-from-file (concat "~/mebewiyo/W17/" class "dm/info.org")))
-
-  (defun get-group-membership ()
-    (let ((line-num 0)
-          (groups-file (get-groups-file)))
-      (catch 'found-members
+    (defun get-score-line (group-file-lines)
+      (catch 'found-line
         (mapc (lambda (line)
-                (if (not (string-match "(mapcar (lambda (x)" line))
-                    (incf line-num)
-                  (incf line-num 3)
-                  (throw 'found-members t)))
-              groups-file))
-      (split-up-group-members (nth line-num groups-file))))
+                (when (string-match "#\\+SCORE:" line)
+                  (throw 'found-line line))) group-file-lines)))
 
-  (defun split-up-group-members (groups-and-members)
-    (mapcar (lambda (group) (split-string group " " t))
-            (split-string groups-and-members ")" t "[\\(]*\\s-*[\\(]*")))
+    (defun split-up-score-tag (score-tag)
+      (split-string score-tag ":" t "\\s-+"))
 
-  (defun pull-grades (week)
-    (let ((groups-with-members (get-group-membership)))
-      (mapc (lambda (group)
-              (let* ((group-name (car group))
-                     (members (rest group))
-                     (scores (get-group-grades group-name week)))
-                (mapc (lambda (member) (change-scores member scores week))
-                      members)))
-            groups-with-members)))
+    (defun extract-score-from-tag (score-tag)
+      (nth 1 (split-up-score-tag score-tag)))
 
-  (defun change-scores (student scores week)
-    (let ((see-grades-file (lines-from-file (see-grades-file-string student) t)))
-      (save-grade-file 
-       (mapconcat
-        (lambda (line)
-          (cond 
-           ((match-weeks-line week assess-name line)
-            (insert-score-in-line line (get-assess-score scores)))
-           ((match-weeks-line week assign-name line)
-            (insert-score-in-line line (get-assign-score scores)))
-           (t line)))
-        see-grades-file "\n") student)))
+    (defun get-assign-score (scores)
+      (cadr scores))
 
-  (defun save-grade-file (file-string student)
-    (with-temp-file (see-grades-file-string student)
-      (insert file-string)))
+    (defun get-assess-score (scores)
+      (car scores))
 
-  (defun match-weeks-line (week name line)
-    (string-match (concat week " " name) line))
+    (defun get-groups-file ()
+      "Grabs the info file to be able to access the groups list for
+               the class. This is returned as a list of lines without empty
+               spaces."
+      (lines-from-file (concat "~/mebewiyo/W17/" class "dm/info.org")))
 
-  (defun insert-score-in-line (line score)
-    (replace-regexp-in-string
-     "\\]\\s-*|\\s-*\\([0-9]+\\.?[0-9]*\\)" score line t t 1))
-  (pull-grades "06")
+    (defun get-group-membership ()
+      (let ((line-num 0)
+            (groups-file (get-groups-file)))
+        (catch 'found-members
+          (mapc (lambda (line)
+                  (if (not (string-match "(mapcar (lambda (x)" line))
+                      (incf line-num)
+                    (incf line-num 3)
+                    (throw 'found-members t)))
+                groups-file))
+        (split-up-group-members (nth line-num groups-file))))
+
+    (defun split-up-group-members (groups-and-members)
+      (mapcar (lambda (group) (split-string group " " t))
+              (split-string groups-and-members ")" t "[\\(]*\\s-*[\\(]*")))
+
+    (defun pull-grades (week)
+      (let ((groups-with-members (get-group-membership)))
+        (mapc (lambda (group)
+                (let* ((group-name (car group))
+                       (members (rest group))
+                       (scores (get-group-grades group-name week)))
+                  (mapc (lambda (member) (change-scores member scores week))
+                        members)))
+              groups-with-members)))
+
+    (defun change-scores (student scores week)
+      (let ((see-grades-file (lines-from-file (see-grades-file-string student) t)))
+        (save-grade-file 
+         (mapconcat
+          (lambda (line)
+            (cond 
+             ((match-weeks-line week assess-name line)
+              (insert-score-in-line line (get-assess-score scores)))
+             ((match-weeks-line week assign-name line)
+              (insert-score-in-line line (get-assign-score scores)))
+             (t line)))
+          see-grades-file "\n") student)))
+
+    (defun save-grade-file (file-string student)
+      (with-temp-file (see-grades-file-string student)
+        (insert file-string)
+        ;(org-table-recalculate-buffer-tables)
+        (goto-line 22)
+        (org-table-recalculate t)
+        (kbd "TAB")))
+
+
+    (defun match-weeks-line (week name line)
+      (string-match (concat week " " name) line))
+
+    (defun insert-score-in-line (line score)
+      (replace-regexp-in-string
+       "\\]\\s-*|\\s-*\\([0-9]+\\.?[0-9]*\\)" score line t t 1))
+    (pull-grades "06")
 #+end_src
 
 #+RESULTS:
