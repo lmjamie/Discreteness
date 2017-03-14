@@ -24,10 +24,10 @@
     (list (get-score assess-file group week)
           (get-score assign-file group week)))
 
-  (defun lines-from-file (file)
+  (defun lines-from-file (file &optional keep-empty) 
     (with-temp-buffer
       (insert-file-contents file)
-      (split-string (buffer-string) "\n" t)))
+      (split-string (buffer-string) "\n" (not keep-empty))))
 
   (defun get-score (type group week)
     (let ((score-file (score-file-string type group week)))
@@ -57,11 +57,9 @@
 
   (defun get-groups-file ()
     "Grabs the info file to be able to access the groups list for
-         the class. This is returned as a list of lines without empty
-         spaces."
+             the class. This is returned as a list of lines without empty
+             spaces."
     (lines-from-file (concat "~/mebewiyo/W17/" class "dm/info.org")))
-
-                                          ;    (format ">%s<" (get-assign-score (get-group-grades "a" "06")))
 
   (defun get-group-membership ()
     (let ((line-num 0)
@@ -89,29 +87,46 @@
                       members)))
             groups-with-members)))
 
-  ;(pull-grades "06")
   (defun change-scores (student scores week)
-    (let ((see-grades-file (lines-from-file (see-grades-file-string student))))
-      (mapcar
-       (lambda (line)
-         (cond 
-          ((match-weeks-line week assess-name line)
-           (insert-score-in-line line (get-assess-score scores)))
-          ((match-weeks-line week assign-name line)
-           (insert-score-in-line line (get-assign-score scores)))
-          (t line)))
-          see-grades-file)))
+    (let ((see-grades-file (lines-from-file (see-grades-file-string student) t)))
+      (save-grade-file 
+       (mapconcat
+        (lambda (line)
+          (cond 
+           ((match-weeks-line week assess-name line)
+            (insert-score-in-line line (get-assess-score scores)))
+           ((match-weeks-line week assign-name line)
+            (insert-score-in-line line (get-assign-score scores)))
+           (t line)))
+        see-grades-file "\n") student)))
+
+  (defun save-grade-file (file-string student)
+    (with-temp-file (see-grades-file-string student)
+      (insert file-string)))
 
   (defun match-weeks-line (week name line)
-    (string-match (concat week "" name) line))
+    (string-match (concat week " " name) line))
 
   (defun insert-score-in-line (line score)
-    (string-match "|\\s-*[0-9]+\\s-*|" line)
-    (replace-match score))
-
-  (let ((test-string "")))
+    (replace-regexp-in-string
+     "\\]\\s-*|\\s-*\\([0-9]+\\.?[0-9]*\\)" score line t t 1))
+  (pull-grades "06")
 #+end_src
 
 #+RESULTS:
-| #+TITLE: See Grades | #+LANGUAGE: en | #+OPTIONS: H:4 num:nil toc:nil \n:nil @:t ::t | :t ^:t *:t TeX:t LaTeX:t | #+STARTUP: showeverything | In the following table, your weighted scores are calculable with an org-mode | table formula. Put your cursor on the "#+tblfm:" line at the bottom of the | table and type , , to update these weighted scores after changing any raw | score. You are welcome to change any scores and play "what if" with your | grade, but your official scores will need to be merged in when you grant a git | "pull request" from me or one of my graders. | The source code block at the bottom of this file will tell you your letter | grade once you know how to use it. The [[file:grading.org][grading.org]] file has some information | on how to maximize your grade. | Note: All raw scores are normalized to 100 total possible. | #+tblname: grades-as-table |   | Grade Item | Raw Score | Timeliness | Weight | Weighted Score |   |   | ---------------+-----------+------------+--------+---------------- |   |   | [[file:wa00.org][00 Assignment]] | 100 | 1.0 | 2.5 | 2.5 |   |   | [[file:../week01/pa01.org][01 Assessment]] | 100 | 1.0 | 2.5 | 2.5 |   |   | [[file:../week01/wa01.org][01 Assignment]] | 100 | 1.0 | 2.5 | 2.5 |   |   | [[file:../week02/pa02.org][02 Assessment]] | 100 | 1.0 | 2.5 | 2.5 |   |   | [[file:../week02/wa02.org][02 Assignment]] | 100 | 1.0 | 3.0 | 3. |   |   | [[file:../week03/pa03.org][03 Assessment]] | 100 | 1.0 | 2.5 | 2.5 |   |   | [[file:../week03/wa03.org][03 Assignment]] | 100 | 1.0 | 3.5 | 3.5 |   |   | [[file:../week04/pa04.org][04 Assessment]] | 100 | 1.0 | 2.5 | 2.5 |   |   | [[file:../week04/wa04.org][04 Assignment]] | 100 | 1.0 | 4.0 | 4. |   |   | [[file:../week05/pa05.org][05 Assessment]] | 100 | 1.0 | 2.5 | 2.5 |   |   | [[file:../week05/wa05.org][05 Assignment]] | 100 | 1.0 | 4.5 | 4.5 |   |   | [[file:../week06/pa06.org][06 Assessment]] | 100 | 1.0 | 2.5 | 2.5 |   |   | [[file:../week06/wa06.org][06 Assignment]] | 100 | 1.0 | 5.0 | 5. |   |   | [[file:../week07/pa07.org][07 Assessment]] | 100 | 1.0 | 2.5 | 2.5 |   |   | [[file:../week07/wa07.org][07 Assignment]] | 100 | 1.0 | 5.5 | 5.5 |   |   | [[file:../week08/pa08.org][08 Assessment]] | 100 | 1.0 | 2.5 | 2.5 |   |   | [[file:../week08/wa08.org][08 Assignment]] | 100 | 1.0 | 6.0 | 6. |   |   | [[file:../week09/pa09.org][09 Assessment]] | 100 | 1.0 | 2.5 | 2.5 |   |   | [[file:../week09/wa09.org][09 Assignment]] | 100 | 1.0 | 7.0 | 7. |   |   | [[file:../week10/pa10.org][10 Assessment]] | 100 | 1.0 | 2.5 | 2.5 |   |   | [[file:../week10/wa10.org][10 Assignment]] | 100 | 1.0 | 8.0 | 8. |   |   | [[file:../week11/pa11.org][11 Assessment]] | 100 | 1.0 | 2.5 | 2.5 |   |   | [[file:../week11/wa11.org][11 Assignment]] | 100 | 1.0 | 8.5 | 8.5 |   |   | [[file:../week12/pa12.org][12 Assessment]] | 100 | 1.0 | 2.5 | 2.5 |   |   | [[file:../week12/wa12.org][12 Assignment]] | 100 | 1.0 | 10.0 | 10. |   | #+tblfm: $5=$2*$3*$4/100 | #+BEGIN_SRC emacs-lisp | (defun compute-final-grade (grades) | "Compute weighted percentage and convert to letter grade, returning both." | (let* ((weighted-percentage (apply '+ (mapcar 'fifth grades))) | (number (ceiling weighted-percentage)) | (tens-digit (/ number 10)) | (ones-digit (% number 10)) | (index (min (max (- tens-digit 5) 0) 4)) | (letter (substring "FDCBA" index (+ index 1))) | (sign (if (<= ones-digit 2) "-" (if (>= ones-digit 7) "+"))) | (letter-grade (concat letter (if (and (< number 95) (>= number 60)) sign)))) | (list (format "%2.2f" weighted-percentage) letter-grade))) | #+END_SRC | #+RESULTS: | : compute-final-grade | #+BEGIN_SRC emacs-lisp :var grades=grades-as-table | (compute-final-grade grades) | #+END_SRC | #+RESULTS: |   | 100.00 | A |   |
-#+TBLFM: 
+| spointy-noigus                    | welkerbrendon | jarreed0     | tyjkenn           |               |
+| junk                              | barneyStudent |              |                   |               |
+| po                                | davego44      | jake61392    | tjab6             | DavidTilley   |
+| the-holy-hand-grenades-of-antioch | ecollett1     | meritcapener | bigbruh62         | rfowler1994   |
+| a                                 | ClownBacon45  | bwright400   | caleblj           |               |
+| the-orgers                        | parkerweech   | jasonchio    | jcurtis369        | cambreafisher |
+| los-changos                       | edceln        | fmchora      | scott56gps        |               |
+| chinese-cards                     | JohnSmidt     | Brooken2     | benjameep         | alyssansmith  |
+| emacs-anonymous                   | DerHabicht    | anuar161189  | cynblkfox         | ksnider92     |
+| el-diablo                         | skazerk       | vajpov       | Where44444        |               |
+| zac-and-co                        | Herofly58     | Beesleyz     | yellowbronco71    | nnlamb25      |
+| big-brother-goron                 | jsvilchis     | Dillongc21   | mjnks             | ke7soccerman  |
+| rexburgs-most-wanted              | jkalldre      | bendzado     | danielmartincraig |               |
+| team-godel                        | sellis5566    | spiritnsky   | cameronball183461 | bdamitz       |
+| bullwinkle                        | mdanielp      | ilia-ilia14  | jcreager11        | woolleylandon |
+
