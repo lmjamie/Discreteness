@@ -1,4 +1,4 @@
-* First
+* TODO First
   #+name: 2
   - [ ] a
   - [ ] b
@@ -47,7 +47,7 @@
 
     (defun org-get-plain-list (name)
       "Get the org-element representation of a plain-list with NAME."
-      (catch 'found
+     (catch 'found
         (org-element-map
             (org-element-parse-buffer)
             'plain-list
