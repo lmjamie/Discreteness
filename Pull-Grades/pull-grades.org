@@ -42,7 +42,8 @@
     (catch 'found-line
       (mapc (lambda (line)
               (when (string-match "#\\+SCORE:" line)
-                (throw 'found-line line))) group-file-lines)))
+                (throw 'found-line line))) group-file-lines)
+      "#+SCORE: 100"))
 
   (defun split-up-score-tag (score-tag)
     (split-string score-tag ":" t "\\s-+"))
@@ -58,8 +59,8 @@
 
   (defun get-groups-file ()
     "Grabs the info file to be able to access the groups list for
-             the class. This is returned as a list of lines without empty
-             spaces."
+              the class. This is returned as a list of lines without empty
+              spaces."
     (lines-from-file (concat "~/mebewiyo/W17/" class "dm/info.org")))
 
   (defun get-group-membership ()
@@ -125,6 +126,3 @@
 
   (pull-grades "06")
 #+end_src
-
-#+RESULTS:
-: Added each groups' grade for week 06 to all of their members
