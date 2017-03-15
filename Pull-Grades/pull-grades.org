@@ -5,6 +5,7 @@
   (defconst assign-file "wa")
   (defconst assign-name "Assign")
   (defconst assess-name "Assess")
+  (defconst source-block-lines '(49 66))
 
   (defun week-folder-string (name week)
     "Put together the string for a student or group's selected week folder"
@@ -78,14 +79,18 @@
             (split-string groups-and-members ")" t "[\\(]*\\s-*[\\(]*")))
 
   (defun pull-grades (week)
-    (let ((groups-with-members (get-group-membership)))
+    (let ((groups-with-members (get-group-membership))
+          (old-confirm org-confirm-babel-evaluate))
+      (setq org-confirm-babel-evaluate nil)
       (mapc (lambda (group)
               (let* ((group-name (car group))
                      (members (rest group))
                      (scores (get-group-grades group-name week)))
                 (mapc (lambda (member) (change-scores member scores week))
                       members)))
-            groups-with-members)))
+            groups-with-members)
+      (setq org-confirm-babel-evaluate old-confirm)
+      (format "Added each groups' grade for week %s to all of their members" week)))
 
   (defun change-scores (student scores week)
     (let ((see-grades-file (lines-from-file (see-grades-file-string student) t)))
@@ -103,7 +108,13 @@
   (defun save-grade-file (file-string student)
     (with-temp-file (see-grades-file-string student)
       (insert file-string)
-      (org-table-recalculate-buffer-tables))
+      (update-grades-table)))
+
+  (defun update-grades-table ()
+    (org-table-recalculate-buffer-tables)
+    (mapc (lambda (line-num)
+            (goto-line line-num)
+            (org-babel-execute-src-block)) source-block-lines))
 
   (defun match-weeks-line (week name line)
     (string-match (concat week " " name) line))
@@ -111,23 +122,9 @@
   (defun insert-score-in-line (line score)
     (replace-regexp-in-string
      "\\]\\s-*|\\s-*\\([0-9]+\\.?[0-9]*\\)" score line t t 1))
+
   (pull-grades "06")
 #+end_src
 
 #+RESULTS:
-| spointy-noigus                    | welkerbrendon | jarreed0     | tyjkenn           |               |
-| junk                              | barneyStudent |              |                   |               |
-| po                                | davego44      | jake61392    | tjab6             | DavidTilley   |
-| the-holy-hand-grenades-of-antioch | ecollett1     | meritcapener | bigbruh62         | rfowler1994   |
-| a                                 | ClownBacon45  | bwright400   | caleblj           |               |
-| the-orgers                        | parkerweech   | jasonchio    | jcurtis369        | cambreafisher |
-| los-changos                       | edceln        | fmchora      | scott56gps        |               |
-| chinese-cards                     | JohnSmidt     | Brooken2     | benjameep         | alyssansmith  |
-| emacs-anonymous                   | DerHabicht    | anuar161189  | cynblkfox         | ksnider92     |
-| el-diablo                         | skazerk       | vajpov       | Where44444        |               |
-| zac-and-co                        | Herofly58     | Beesleyz     | yellowbronco71    | nnlamb25      |
-| big-brother-goron                 | jsvilchis     | Dillongc21   | mjnks             | ke7soccerman  |
-| rexburgs-most-wanted              | jkalldre      | bendzado     | danielmartincraig |               |
-| team-godel                        | sellis5566    | spiritnsky   | cameronball183461 | bdamitz       |
-| bullwinkle                        | mdanielp      | ilia-ilia14  | jcreager11        | woolleylandon |
-
+: Added each groups' grade for week 06 to all of their members
